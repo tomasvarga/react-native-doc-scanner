@@ -17,6 +17,7 @@ import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.Point;
+import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
@@ -45,6 +46,7 @@ public class ImageProcessor {
     private ScannedDocument detectDocument(Mat img) {
        ScannedDocument scannedDocuments = new ScannedDocument(img);
         ArrayList<MatOfPoint> contours = findContours(img);
+        enhanceDocument(img);
 
         scannedDocuments.originalSize = img.size();
         Quadrilateral quad = getQuadrilateral(contours, scannedDocuments.originalSize);
@@ -66,7 +68,6 @@ public class ImageProcessor {
             doc = new Mat(img.size(), CvType.CV_8UC4);
             img.copyTo(doc);
         }
-        enhanceDocument(doc);
         return scannedDocuments.setProcessed(doc);
     }
 
@@ -91,8 +92,13 @@ public class ImageProcessor {
   }
 
   private void enhanceDocument(Mat src) {
-      Imgproc.cvtColor(src, src, Imgproc.COLOR_RGBA2GRAY);
-      src.convertTo(src, CvType.CV_8UC1, colorGain, colorBias);
+    Imgproc.cvtColor(src, src, Imgproc.COLOR_RGBA2GRAY);
+    src.convertTo(src, CvType.CV_8UC1, colorGain, colorBias);
+    Imgproc.threshold(src, src,0, 255, Imgproc.THRESH_BINARY_INV|Imgproc.THRESH_OTSU);
+    Imgproc.dilate(src, src, new Mat(new Size(5,5), CvType.CV_8UC1));
+    Imgproc.erode(src, src, new Mat(new Size(5,5), CvType.CV_8UC1));
+    Imgproc.morphologyEx(src, src, Imgproc.MORPH_OPEN, new Mat(1, 1, CvType.CV_8U, Scalar.all(1)));
+    Imgproc.morphologyEx(src, src, Imgproc.MORPH_CLOSE, new Mat(1, 1, CvType.CV_8U, Scalar.all(1)));
   }
 
   private Point[] sortPoints(Point[] src) {
@@ -200,19 +206,15 @@ public class ImageProcessor {
         cannedImage = new Mat(size, CvType.CV_8UC1);
 
         Imgproc.resize(src, resizedImage, size);
-        Imgproc.cvtColor(resizedImage, grayImage, Imgproc.COLOR_RGB2HSV, 4);
-        List <Mat> image = new ArrayList<>(3);
-        Core.split(grayImage, image);
-        Mat saturationChannel = image.get(1);
-        Imgproc.GaussianBlur(saturationChannel, grayImage, new Size(5, 5), 0);
-        Imgproc.threshold(grayImage, grayImage,0, 255, Imgproc.THRESH_BINARY_INV|Imgproc.THRESH_OTSU);
-        Imgproc.erode(grayImage, grayImage, new Mat(new Size(5,5), CvType.CV_8UC1));
-        Imgproc.Canny(grayImage, cannedImage, 80, 250, 3, false);
+        Imgproc.cvtColor(resizedImage, grayImage, Imgproc.COLOR_RGBA2GRAY, 4);
+        Imgproc.applyColorMap(grayImage, grayImage, Imgproc.COLORMAP_HSV);
+        Imgproc.GaussianBlur(grayImage, grayImage, new Size(5, 5), 0);
+        Imgproc.Canny(grayImage, cannedImage, 80, 220, 3, false);
 
         ArrayList<MatOfPoint> contours = new ArrayList<>();
         Mat hierarchy = new Mat();
 
-        Imgproc.findContours(cannedImage, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+        Imgproc.findContours(cannedImage, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
         hierarchy.release();
 
         Collections.sort(contours, new Comparator<MatOfPoint>() {

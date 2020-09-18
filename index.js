@@ -76,7 +76,7 @@ class DocScanner extends Component {
       return
     }
 
-    const { defaultFrameCoordinates } = this.props
+    const { defaultFrameCoordinates, hasManualCropping } = this.props
     const zoom = layout.height / imageHeight
     corners[0].position.setValue({
       x: defaultFrameCoordinates.left,
@@ -100,7 +100,6 @@ class DocScanner extends Component {
     this.findDocument()
 
     this.setState({
-      isLoading: false,
       viewWidth: layout.width,
       viewHeight: layout.height,
       imageLayoutWidth: layout.width,
@@ -108,7 +107,7 @@ class DocScanner extends Component {
       offsetVerticle: 0,
       offsetHorizontal: 0,
       zoom,
-      overlayPositions: this.getOverlayString(),
+      ...(hasManualCropping ? { overlayPositions: this.getOverlayString() } : {}),
     })
   }
   cornerPanResponser = (corner) => {
@@ -116,7 +115,9 @@ class DocScanner extends Component {
       onStartShouldSetPanResponder: () => true,
       onPanResponderMove: (e, gesture) => {
         this.moveCorner(corner, gesture.dx, gesture.dy)
-        this.setState({ overlayPositions: this.getOverlayString() })
+        if (this.props.hasManualCropping) {
+          this.setState({ overlayPositions: this.getOverlayString() })
+        }
       },
       onPanResponderRelease: () => {
         corner.delta = { x: 0, y: 0 }
@@ -161,7 +162,9 @@ class DocScanner extends Component {
           default:
             break
         }
-        this.setState({ overlayPositions: this.getOverlayString() })
+        if (this.props.hasManualCropping) {
+          this.setState({ overlayPositions: this.getOverlayString() })
+        }
       },
       onPanResponderRelease: () => {
         this.setState((state) => ({
@@ -174,9 +177,9 @@ class DocScanner extends Component {
   }
   crop = () => {
     const { isLoading, imageUri, imageHeight, imageWidth } = this.state
-    const { updateImage } = this.props
-    if (!isLoading) {
-      const { topLeft, topRight, bottomLeft, bottomRight } = this.getCorners()
+    const { updateImage, hasManualCropping } = this.props
+    const { topLeft, topRight, bottomLeft, bottomRight } = this.getCorners()
+    if ((!isLoading && hasManualCropping) || !hasManualCropping) {
       const coordinates = {
         topLeft: this.viewCoordinatesToImageCoordinates(topLeft),
         topRight: this.viewCoordinatesToImageCoordinates(topRight),
@@ -188,6 +191,7 @@ class DocScanner extends Component {
       NativeModules.CustomCropManager.crop(coordinates, imageUri, (err, res) =>
         updateImage(res.image, coordinates)
       )
+      this.setState({ isLoading: false })
     }
   }
   findDocument = () => {
@@ -214,7 +218,11 @@ class DocScanner extends Component {
         })
         this.updateMidPoints()
       }
-      this.setState({ isLoading: false, overlayPositions: this.getOverlayString(), corners })
+      if (!this.props.hasManualCropping) {
+        this.crop()
+        return
+      }
+      this.setState({ isLoading: false })
     })
   }
   getCorners = () => {
@@ -281,6 +289,7 @@ class DocScanner extends Component {
       overlayOpacity,
       overlayStrokeColor,
       loadingIndicatorColor,
+      hasManualCropping,
     } = this.props
     return (
       <View style={{ flex: 1, width: '100%' }} onLayout={this.onLayout}>
@@ -298,7 +307,7 @@ class DocScanner extends Component {
             <ActivityIndicator color={loadingIndicatorColor} size="large" />
           </View>
         )}
-        {!isLoading && (
+        {!isLoading && hasManualCropping && (
           <>
             <View
               style={{
@@ -414,6 +423,7 @@ DocScanner.defaultProps = {
     bottom: Dimensions.get('window').height - 100,
     top: 100,
   },
+  hasManualCropping: true,
 }
 
 DocScanner.propTypes = {
@@ -432,6 +442,7 @@ DocScanner.propTypes = {
     top: PropTypes.number,
   }),
   initialImage: PropTypes.string,
+  hasManualCropping: PropTypes.bool,
 }
 
 export default DocScanner
