@@ -95,8 +95,6 @@ public class ImageProcessor {
     Imgproc.cvtColor(src, src, Imgproc.COLOR_RGBA2GRAY);
     src.convertTo(src, CvType.CV_8UC1, colorGain, colorBias);
     Imgproc.threshold(src, src,0, 255, Imgproc.THRESH_BINARY_INV|Imgproc.THRESH_OTSU);
-    Imgproc.dilate(src, src, new Mat(new Size(5,5), CvType.CV_8UC1));
-    Imgproc.erode(src, src, new Mat(new Size(5,5), CvType.CV_8UC1));
     Imgproc.morphologyEx(src, src, Imgproc.MORPH_OPEN, new Mat(1, 1, CvType.CV_8U, Scalar.all(1)));
     Imgproc.morphologyEx(src, src, Imgproc.MORPH_CLOSE, new Mat(1, 1, CvType.CV_8U, Scalar.all(1)));
   }
@@ -209,6 +207,7 @@ public class ImageProcessor {
         Imgproc.cvtColor(resizedImage, grayImage, Imgproc.COLOR_RGBA2GRAY, 4);
         Imgproc.applyColorMap(grayImage, grayImage, Imgproc.COLORMAP_HSV);
         Imgproc.GaussianBlur(grayImage, grayImage, new Size(5, 5), 0);
+        Imgproc.erode(grayImage, grayImage, new Mat(new Size(5,5), CvType.CV_8UC1));
         Imgproc.Canny(grayImage, cannedImage, 80, 220, 3, false);
 
         ArrayList<MatOfPoint> contours = new ArrayList<>();
