@@ -59,7 +59,7 @@ class DocScanner extends Component {
       ImageSize.getSize(imageUri).then(({ height, width }) => {
         let newWidth = width
         let newHeight = height
-        if (height <= width && IS_ANDROID) {
+        if (height <= width && Platform.OS === 'android') {
           newWidth = height
           newHeight = width
         }
